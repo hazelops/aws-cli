@@ -5,6 +5,11 @@ defaults:
 on:
   schedule:
     - cron: '0 3 * * *'
+
+  push:
+    branches:
+      - master
+
 jobs:
   build:
     runs-on: ubuntu-latest
