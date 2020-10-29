@@ -2,6 +2,12 @@ name: "Build"
 defaults:
   run:
     shell: bash
+env:
+  SOURCE_DOCKER_REGISTRY: amazon
+  SOURCE_DOCKER_IMAGE_NAME: aws-cli
+  TARGET_DOCKER_REGISTRY: hazelops
+  TARGET_DOCKER_IMAGE_NAME: aws-cli
+
 on:
   schedule:
     - cron: '0 3 * * *'
@@ -24,11 +30,19 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Should be improved and split into multiple runs
+      - name: Get latest tag
+        run: |
+          $tag=$(curl -s https://registry.hub.docker.com/v1/repositories/${SOURCE_DOCKER_REGISTRY}/${SOURCE_DOCKER_IMAGE_NAME}/tags | jq -r ".[1].name")
+          echo "TAG=$tag" >> $GITHUB_ENV
+
+      
       - name: Build
         run: |
-          image="amazon/aws-cli"
-          tag=$(curl -s https://registry.hub.docker.com/v1/repositories/${image}/tags | jq -r ".[1].name")
-          docker build -t hazelops/aws-cli:$tag -t hazelops/aws-cli:latest --build-arg DOCKER_REGISTRY=amazon --build-arg DOCKER_IMAGE_NAME=aws-cli --build-arg TAG=$tag .
-          docker push hazelops/aws-cli:$tag
-          docker push hazelops/aws-cli:latest
+          docker build -t $TARGET_DOCKER_REGISTRY/$TARGET_DOCKER_IMAGE_NAME:$TAG -t $TARGET_DOCKER_REGISTRY/$TARGET_DOCKER_IMAGE_NAME:latest --build-arg DOCKER_REGISTRY=$SOURCE_DOCKER_REGISTRY --build-arg DOCKER_IMAGE_NAME=$SOURCE_DOCKER_IMAGE_NAME --build-arg TAG=$TAG .
+      - uses: Azure/container-scan@v0
+        with:
+          image-name: $TARGET_DOCKER_REGISTRY/$TARGET_DOCKER_IMAGE_NAME:$TAG
+      - name: Push
+        run: |
+          docker push $TARGET_DOCKER_REGISTRY/$TARGET_DOCKER_IMAGE_NAME:$TAG
+          docker push $TARGET_DOCKER_REGISTRY/$TARGET_DOCKER_IMAGE_NAME:latest
