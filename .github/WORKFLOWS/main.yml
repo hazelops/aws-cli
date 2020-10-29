@@ -1,0 +1,23 @@
+name: "Build"
+defaults:
+  run:
+    shell: bash
+on:
+  schedule:
+    - cron: '0 3 * * *'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      # Should be improved and split into multiple runs
+      - name: Build
+        run: |
+          image="amazon/aws-cli"
+          tag=$(curl -s https://registry.hub.docker.com/v1/repositories/${image}/tags | jq -r ".[1].name")
+          docker build -t hazelops/aws-cli:$tag -t hazelops/aws-cli:latest --build-arg DOCKER_REGISTRY=amazon --build-arg DOCKER_IMAGE_NAME=aws-cli --build-arg TAG=$tag .
+          docker push hazelops/aws-cli:$tag
+          docker push hazelops/aws-cli:latest
